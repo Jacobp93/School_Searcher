@@ -83,7 +83,7 @@ st.write("Search for the top 5 closest schools by entering a postcode.")
 postcode = st.text_input("Enter a postcode:", "")
 
 # Checkbox for selecting Primary Legacy or Jigsaw RE
-search_primary_legacy = st.checkbox("Search Primary Legacy", value=True)
+search_primary_legacy = st.checkbox("Search Primary PSHE", value=True)
 search_jigsaw_re = st.checkbox("Search Jigsaw RE", value=False)
 
 # Set a search radius
