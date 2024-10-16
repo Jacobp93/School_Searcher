@@ -4,17 +4,13 @@ from geopy.geocoders import OpenCage
 from sklearn.neighbors import NearestNeighbors
 import numpy as np
 
-# OpenCage API Key
-OPENCAGE_API_KEY = "YOUR_OPENCAGE_API_KEY"  # Replace with your actual OpenCage API key
-
-
+# OpenCage API Key (from Streamlit secrets)
 OPENCAGE_API_KEY = st.secrets["OPENCAGE_API_KEY"]
 
+# Initialize OpenCage Geocoder
 geolocator = OpenCage(api_key=OPENCAGE_API_KEY)
 
-
-
-# Function to get latitude and longitude
+# Function to get latitude and longitude using OpenCage
 def get_lat_lon(postcode):
     try:
         location = geolocator.geocode(postcode)
@@ -39,6 +35,16 @@ def load_data():
     return primary_legacy, re_legacy
 
 primary_legacy, re_legacy = load_data()
+
+# Function to get school types
+def get_school_types(row):
+    school_types = set()  # Use a set to avoid duplicates
+    # Loop through School 1 Type to School 5 Type to collect types
+    for j in range(1, 6):
+        school_type_column = f'School {j} Type'
+        if school_type_column in row and not pd.isna(row[school_type_column]):
+            school_types.add(row[school_type_column])  # Add to set to avoid duplicates
+    return ', '.join(school_types) if school_types else 'Unknown'  # Return types as a comma-separated string
 
 # Helper function to find the nearest neighbors
 def find_nearest(postcode, data, n_neighbors=5, radius=10):
@@ -107,7 +113,7 @@ if st.button("Search"):
                 # Prepare data for table display
                 table_data = []
                 for i, (index, row) in enumerate(nearest_schools.iterrows()):
-                    school_name = row[f'School {i+1}']  # Dynamic school name column
+                    school_name = row['Company name']  # Assuming 'Company name' is the column with the school name
                     # Get all unique types for this school
                     school_types = get_school_types(row)
                     
