@@ -29,8 +29,8 @@ def get_lat_lon(postcode):
 # Load datasets
 @st.cache_data
 def load_data():
-    primary_legacy = pd.read_csv(r"C:\Users\Jacob\OneDrive - Jigsaw PSHE Ltd\Documents\Python\Neighbour_Analysis\Primary_Legacy_with_Closest_SaaS.csv")
-    re_legacy = pd.read_csv(r"C:\Users\Jacob\OneDrive - Jigsaw PSHE Ltd\Documents\Python\Neighbour_Analysis\RE_Legacy_with_Closest_SaaS.csv")
+    primary_legacy = pd.read_csv("Primary_Legacy_with_Closest_SaaS.csv")
+    re_legacy = pd.read_csv("RE_Legacy_with_Closest_SaaS.csv")
 
     # Replace 'Blank' strings in the latitude and longitude with NaN and drop them
     primary_legacy = primary_legacy.replace('Blank', np.nan).dropna(subset=['latitude', 'longitude'])
