@@ -36,18 +36,17 @@ def load_data():
 
 primary_legacy, re_legacy = load_data()
 
-# Function to get school types
-def get_school_types(row):
-    school_types = set()  # Use a set to avoid duplicates
-    # Loop through School 1 Type to School 5 Type to collect types
-    for j in range(1, 6):
+# Function to check if a row contains SaaS in any of the School Type columns
+def is_saas(row):
+    for j in range(1, 6):  # Check School 1 Type to School 5 Type
         school_type_column = f'School {j} Type'
         if school_type_column in row and not pd.isna(row[school_type_column]):
-            school_types.add(row[school_type_column])  # Add to set to avoid duplicates
-    return ', '.join(school_types) if school_types else 'Unknown'  # Return types as a comma-separated string
+            if row[school_type_column] in ['Primary SaaS', 'Jigsaw RE SaaS']:
+                return True
+    return False
 
-# Helper function to find the nearest neighbors
-def find_nearest(postcode, data, n_neighbors=5, radius=10):
+# Helper function to find the nearest SaaS schools
+def find_nearest(postcode, data, n_neighbors=5, radius=50):
     # Geocoding the input postcode to get latitude and longitude
     lat_lon = get_lat_lon(postcode)
     if lat_lon is None:
@@ -55,9 +54,15 @@ def find_nearest(postcode, data, n_neighbors=5, radius=10):
     
     coords = np.array([lat_lon])  # Convert to array format
 
+    # Filter out only rows where any of the School Types is "Primary SaaS" or "Jigsaw RE SaaS"
+    saas_data = data[data.apply(is_saas, axis=1)]
+    
+    if saas_data.empty:
+        return None, None
+    
     # Use NearestNeighbors to find the closest schools based on lat/long
     nbrs = NearestNeighbors(n_neighbors=n_neighbors * 2, algorithm='ball_tree', metric='haversine')  # Increase neighbors to reduce chance of missing distinct results
-    school_coords = data[['latitude', 'longitude']].values.astype(float)  # Ensure valid coordinates
+    school_coords = saas_data[['latitude', 'longitude']].values.astype(float)  # Ensure valid coordinates
     nbrs.fit(np.radians(school_coords))
 
     distances, indices = nbrs.kneighbors(np.radians(coords))
@@ -66,10 +71,10 @@ def find_nearest(postcode, data, n_neighbors=5, radius=10):
     # Filter schools within the specified radius
     within_radius = distances_in_miles <= radius
 
-    nearest_schools = data.iloc[indices.flatten()[within_radius]]
+    nearest_schools = saas_data.iloc[indices.flatten()[within_radius]]
     distances_in_miles = distances_in_miles[within_radius]
 
-    # Limit the number of schools to 5 to match School 1 to School 5 Type columns
+    # Limit the number of schools to 5
     nearest_schools = nearest_schools.head(n_neighbors)
     distances_in_miles = distances_in_miles[:len(nearest_schools)]  # Adjust distances after limiting results
 
@@ -77,39 +82,23 @@ def find_nearest(postcode, data, n_neighbors=5, radius=10):
 
 # Streamlit app layout
 st.title("School Nearest Neighbor Finder")
-st.write("Search for the top 5 closest schools by entering a postcode.")
+st.write("Search for the top 5 closest SaaS schools by entering a postcode.")
 
 # Postcode input
 postcode = st.text_input("Enter a postcode:", "")
 
-# Checkbox for selecting Primary SaaS or RE SaaS (SaaS only, exclude Legacy)
-search_primary_saas = st.checkbox("Search Primary SaaS", value=True)
-search_re_saas = st.checkbox("Search RE SaaS", value=False)
-
 # Set a search radius
 radius = st.slider("Set Search Radius (in miles)", min_value=1, max_value=50, value=10)  # Set default to 10 miles
 
-# Filter SaaS customers only
-primary_saas = primary_legacy[primary_legacy['Customer type - Primary'] == 'Primary SaaS']
-re_saas = re_legacy[re_legacy['Customer type - RE'] == 'RE SaaS']
-
-# Find the nearest neighbors based on user selection
+# Find the nearest SaaS schools based on user input
 if st.button("Search"):
     if postcode:
-        combined_data = pd.DataFrame()  # Initialize an empty DataFrame to combine datasets
-
-        # Combine the datasets based on user selection
-        if search_primary_saas:
-            st.subheader("Searching in Primary SaaS dataset...")
-            combined_data = pd.concat([combined_data, primary_saas])
-
-        if search_re_saas:
-            st.subheader("Searching in RE SaaS dataset...")
-            combined_data = pd.concat([combined_data, re_saas])
+        # Combine the SaaS data (Primary SaaS and Jigsaw RE SaaS)
+        combined_data = pd.concat([primary_legacy, re_legacy])
 
         if not combined_data.empty:
-            nearest_schools, distances = find_nearest(postcode, combined_data, n_neighbors=5, radius=radius)  # Ensure max 5 schools
-            
+            nearest_schools, distances = find_nearest(postcode, combined_data, n_neighbors=5, radius=radius)
+
             # Check if the nearest schools and distances are found
             if nearest_schools is not None and distances is not None:
                 st.write(f"Top 5 closest SaaS schools within {radius} miles:")
@@ -119,12 +108,12 @@ if st.button("Search"):
                 for i, (index, row) in enumerate(nearest_schools.iterrows()):
                     school_name = row['Company name']  # Assuming 'Company name' is the column with the school name
                     # Get all unique types for this school
-                    school_types = get_school_types(row)
+                    school_types = ', '.join([row[f'School {j} Type'] for j in range(1, 6) if pd.notna(row[f'School {j} Type'])])
                     
                     table_data.append({
                         "School Name": school_name,
                         "Distance (miles)": f"{distances[i]:.2f}",
-                        "School Type": school_types  # Combined unique types
+                        "School Type": school_types
                     })
                 
                 # Convert the list of dictionaries to a DataFrame for display
@@ -134,6 +123,6 @@ if st.button("Search"):
                 st.table(table_df)
                 
             else:
-                st.error("Postcode not found, please try again.")
+                st.error("No SaaS schools found for the provided postcode within the specified radius.")
         else:
             st.error("No schools found for the selected criteria.")
