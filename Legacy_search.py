@@ -82,12 +82,16 @@ st.write("Search for the top 5 closest schools by entering a postcode.")
 # Postcode input
 postcode = st.text_input("Enter a postcode:", "")
 
-# Checkbox for selecting Primary Legacy or Jigsaw RE
-search_primary_legacy = st.checkbox("Search Primary PSHE", value=True)
-search_jigsaw_re = st.checkbox("Search Jigsaw RE", value=False)
+# Checkbox for selecting Primary SaaS or RE SaaS (SaaS only, exclude Legacy)
+search_primary_saas = st.checkbox("Search Primary SaaS", value=True)
+search_re_saas = st.checkbox("Search RE SaaS", value=False)
 
 # Set a search radius
 radius = st.slider("Set Search Radius (in miles)", min_value=1, max_value=50, value=10)  # Set default to 10 miles
+
+# Filter SaaS customers only
+primary_saas = primary_legacy[primary_legacy['Customer type - Primary'] == 'Primary SaaS']
+re_saas = re_legacy[re_legacy['Customer type - RE'] == 'RE SaaS']
 
 # Find the nearest neighbors based on user selection
 if st.button("Search"):
@@ -95,20 +99,20 @@ if st.button("Search"):
         combined_data = pd.DataFrame()  # Initialize an empty DataFrame to combine datasets
 
         # Combine the datasets based on user selection
-        if search_primary_legacy:
-            st.subheader("Searching in Primary Legacy dataset...")
-            combined_data = pd.concat([combined_data, primary_legacy])
+        if search_primary_saas:
+            st.subheader("Searching in Primary SaaS dataset...")
+            combined_data = pd.concat([combined_data, primary_saas])
 
-        if search_jigsaw_re:
-            st.subheader("Searching in Jigsaw RE dataset...")
-            combined_data = pd.concat([combined_data, re_legacy])
+        if search_re_saas:
+            st.subheader("Searching in RE SaaS dataset...")
+            combined_data = pd.concat([combined_data, re_saas])
 
         if not combined_data.empty:
             nearest_schools, distances = find_nearest(postcode, combined_data, n_neighbors=5, radius=radius)  # Ensure max 5 schools
             
             # Check if the nearest schools and distances are found
             if nearest_schools is not None and distances is not None:
-                st.write(f"Top 5 closest schools within {radius} miles:")
+                st.write(f"Top 5 closest SaaS schools within {radius} miles:")
                 
                 # Prepare data for table display
                 table_data = []
