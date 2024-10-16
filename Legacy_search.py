@@ -36,13 +36,11 @@ def load_data():
 
 primary_legacy, re_legacy = load_data()
 
-# Function to check if a row contains SaaS in any of the School Type columns
-def is_saas(row):
-    for j in range(1, 6):  # Check School 1 Type to School 5 Type
-        school_type_column = f'School {j} Type'
-        if school_type_column in row and not pd.isna(row[school_type_column]):
-            if row[school_type_column] in ['Primary SaaS', 'Jigsaw RE SaaS']:
-                return True
+# Function to check if a row contains SaaS in the Customer Type columns
+def is_saas_customer(row):
+    # Ensure the customer is classified as SaaS in either Primary or RE
+    if row['Customer type - Primary'] == 'Primary SaaS' or row['Customer type - RE'] == 'Jigsaw RE SaaS':
+        return True
     return False
 
 # Helper function to find the nearest SaaS schools
@@ -54,8 +52,8 @@ def find_nearest(postcode, data, n_neighbors=5, radius=50):
     
     coords = np.array([lat_lon])  # Convert to array format
 
-    # Filter out only rows where any of the School Types is "Primary SaaS" or "Jigsaw RE SaaS"
-    saas_data = data[data.apply(is_saas, axis=1)]
+    # Filter out only SaaS customers based on 'Customer type - Primary' and 'Customer type - RE'
+    saas_data = data[data.apply(is_saas_customer, axis=1)]
     
     if saas_data.empty:
         return None, None
@@ -93,7 +91,7 @@ radius = st.slider("Set Search Radius (in miles)", min_value=1, max_value=50, va
 # Find the nearest SaaS schools based on user input
 if st.button("Search"):
     if postcode:
-        # Combine the SaaS data (Primary SaaS and Jigsaw RE SaaS)
+        # Combine the data from Primary Legacy and RE Legacy
         combined_data = pd.concat([primary_legacy, re_legacy])
 
         if not combined_data.empty:
